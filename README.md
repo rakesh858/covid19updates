@@ -1,2 +1,0 @@
-# covid19updates
-covid
