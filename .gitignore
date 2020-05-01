@@ -2,5 +2,4 @@
 .Rhistory
 .RData
 .Ruserdata
-rmarkdown-website-template.Rproj
-README.html
+.DS_Store
