@@ -5,7 +5,7 @@
 ### The Coronavirus Dashboard
 
 This [Coronavirus
-dashboard](https://rakesh858.github.io/coronavirus_dashboard/)
+dashboard](https://ramikrispin.github.io/coronavirus_dashboard/)
 provides an overview of the 2019 Novel Coronavirus COVID-19 (2019-nCoV)
 epidemic. This dashboard is built with R using the Rmakrdown framework
 and can easily reproduce by others.
