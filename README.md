@@ -11,7 +11,7 @@ epidemic. This dashboard is built with R using the Rmakrdown framework
 and can easily reproduce by others.
 
 The data behind this dashboard can be found in the following
-[repository](https://github.com/rakesh858/coronavirus), and its update
+[repository](https://github.com/RamiKrispin/coronavirus), and its update
 on a daily bases
 
 <img src="figures/dash1.png" width="100%" />
