@@ -1,0 +1,359 @@
+---
+title: "Coronavirus"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    social: menu
+    vertical_layout: fill
+  html_document:
+    df_print: paged
+---
+
+
+```{r setup, include=FALSE}
+#------------------ Packages ------------------
+library(flexdashboard)
+library(plotly)
+library(flexdashboard)
+#library(circlepackeR)  
+library(hrbrthemes)
+library(htmlwidgets)
+library(data.tree)
+library(leafpop)
+library(purrr)
+library(jsonlite)
+library(rjson)
+library(viridis)
+library(highcharter)
+`%>%` <- magrittr::`%>%`
+#------------------ Parameters ------------------
+# Set colors
+# https://www.w3.org/TR/css-color-3/#svg-color
+confirmed_color <- "purple"
+active_color <- "#1f77b4"
+recovered_color <- "forestgreen"
+death_color <- "red"
+#------------------ Data ------------------
+data<-read.csv("https://api.covid19india.org/csv/latest/state_wise.csv")
+data <- data[-c(1),]
+df <- data %>% 
+     dplyr::select(State ,Confirmed,Recovered,Deaths,Active)
+ Data1<- read.csv("https://raw.githubusercontent.com/GhoraiVanga/Covid19/master/Time_Wise_Data.csv")
+ Data1$Date=as.Date(Data1$Date, "%d-%b")
+# nestdict <- read.csv("Distric_Wise.csv")
+# nestdict$A <-paste(nestdict$District,nestdict$Confirmed)
+#nestdict$pathString <- paste("world", 
+                            # nestdict$State, 
+                            # nestdict$A,
+                             
+                            # sep = "/")
+#population <- as.Node(nestdict)
+Trend <- jsonlite::fromJSON("https://api.covid19india.org/data.json")
+result1 <-Trend$statewise
+Trend_Data <- as.data.frame(result1)
+Trend_Data$lastupdatedtime <- as.Date(Trend_Data$lastupdatedtime,format = "%d/%m/%Y")
+result2 <-Trend$tested
+Trend_Tested <- as.data.frame(result2)
+Trend_Tested$totalsamplestested <- as.numeric(Trend_Tested$totalsamplestested )
+Trend_Tested<-max(Trend_Tested$totalsamplestested, na.rm = TRUE )
+result3 <-Trend$statewise
+Trend_Today <- as.data.frame(result1)
+Trend_Today $lastupdatedtime <- as.Date(Trend_Today $lastupdatedtime,format = "%d/%m/%Y")
+Trend_Today $deltaconfirmed <- as.numeric(Trend_Today $deltaconfirmed)
+Trend_Today $deltadeaths <- as.numeric(Trend_Today $deltadeaths )
+Trend_Today $deltarecovered <- as.numeric(Trend_Today $deltarecovered)
+Trend_Today_PD <- Trend_Today  %>% select(deltadeaths,deltarecovered,deltaconfirmed,lastupdatedtime,state) %>% 
+  filter(lastupdatedtime==Sys.Date()) %>%
+  filter(deltarecovered >0 | deltaconfirmed >0 | deltadeaths > 0  ) 
+Trend_Today_PD <- Trend_Today_PD[-1,]
+kit <- jsonlite::fromJSON("https://api.covid19india.org/state_test_data.json")
+KIT_Data <- as.data.frame(kit)
+KIT_Data $states_tested_data.updatedon <-as.Date(KIT_Data$states_tested_data.updatedon,format = '%d/%m/%Y')
+KIT_Data <- KIT_Data %>% select(states_tested_data.updatedon,states_tested_data.totaltested,states_tested_data.state,states_tested_data.positive)
+KIT_Data1 <- KIT_Data %>% filter(states_tested_data.updatedon==Sys.Date()-1)
+KIT_Data1$states_tested_data.totaltested <- as.numeric(KIT_Data1$states_tested_data.totaltested)
+KIT_Data1$states_tested_data.positive <- as.numeric(KIT_Data1$states_tested_data.positive)
+KIT_Data1$states_tested_data.state <- as.factor(KIT_Data1$states_tested_data.state)
+KIT_Data1 <- KIT_Data1 %>% group_by(states_tested_data.state) %>% arrange(desc(states_tested_data.totaltested))
+  
+#------------trajectory plot data prep------------
+```
+
+INDIA
+=======================================================================
+Row
+-----------------------------------------------------------------------
+
+
+
+### confirmed {.value-box}
+
+
+
+```{r}
+valueBox(value = paste(format(sum(df$Confirmed), big.mark = ","), "", sep = " "), 
+         caption = "Total Confirmed Cases", 
+         icon = "fas fa-user-md", 
+         color = confirmed_color)
+```
+
+
+### active {.value-box}
+
+```{r}
+valueBox(value = paste(format(sum(df$Active, na.rm = TRUE), big.mark = ","), " (",
+                       round(100 * sum(df$Active, na.rm = TRUE) / sum(df$Confirmed), 1), 
+                       "%)", sep = ""), 
+         caption = "Active Cases", icon = "fas fa-ambulance", 
+         color = active_color)
+```
+
+### recovered {.value-box}
+
+```{r}
+valueBox(value = paste(format(sum(df$Recovered, na.rm = TRUE), big.mark = ","), " (",
+                       round(100 * sum(df$Recovered, na.rm = TRUE) / sum(df$Active), 1), 
+                       "%)", sep = ""), 
+         caption = "Recovered Cases", icon = "fas fa-heartbeat", 
+         color = recovered_color)
+```
+
+### death {.value-box}
+
+```{r}
+valueBox(value = paste(format(sum(df$Deaths, na.rm = TRUE), big.mark = ","), " (",
+                       round(100 * sum(df$Deaths, na.rm = TRUE) / sum(df$Confirmed), 1), 
+                       "%)", sep = ""),
+         caption = "Death Cases", 
+         icon = "fas fa-heart-broken", 
+         color = death_color)
+```
+
+
+### TotalTested {.value-box}
+
+
+
+```{r}
+valueBox(Trend_Tested, icon ="fas fa-stethoscope")
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Cases Distribution by State (`r  max(Trend_Data$lastupdatedtime)`)
+
+```{r daily_summary}
+p=plotly::plot_ly(df ,
+                x =df$State  , 
+                y = df$Confirmed, 
+                # text =  ~ confirmed, 
+                # textposition = 'auto',
+                type = "bar", 
+                name = "Confirmed",
+                marker = list(color = active_color)) %>%
+  plotly::add_trace(y = df$Recovered, 
+                    # text =  ~ recovered, 
+                    # textposition = 'auto',
+                    name = "Recovered",
+                    marker = list(color = recovered_color)) %>%
+  plotly::add_trace(y = df$Deaths, 
+                    # text =  ~ death, 
+                    # textposition = 'auto',
+                    name = "Death",
+                    marker = list(color = death_color)) %>%
+  plotly::layout(barmode = 'stack',
+                 yaxis = list(title = "Total Cases (log scaled)",
+                              type = "log"),
+                 xaxis = list(title = "",categoryorder = "array",
+                              categoryarray=df$State),
+                 
+                 hovermode = "compare",
+                 margin =  list(
+                   # l = 60,
+                   # r = 40,
+                   b = 60,
+                   t = 40,
+                   pad = 2
+                 ))
+ggplotly(p) %>% config(displayModeBar = F) %>% layout(xaxis=list(fixedrange=TRUE)) %>% layout(yaxis=list(fixedrange=TRUE))
+  
+```
+
+Row {data-width=400}
+-----------------------------------------------------------------------
+
+
+### Daily Cumulative Cases by Type
+    
+```{r}
+# plotly::plot_ly(df_daily, x = ~date, y = ~active_cum, name = 'Active', type = 'scatter', mode = 'none', stackgroup = 'one', fillcolor = "#1f77b4") %>%
+# plotly::add_trace(y = ~recovered_cum, name = 'Recovered', fillcolor = "green") %>%
+# plotly::add_trace(y = ~death_cum, name = "Death", fillcolor = "red") %>%
+#   plotly::layout(title = "",
+#          xaxis = list(title = "",
+#                       showgrid = FALSE),
+#          yaxis = list(title = "Cumulative Number of Cases",
+#                       showgrid = FALSE),
+#          legend = list(x = 0.1, y = 0.9),
+#                  hovermode = "compare")
+q=plotly::plot_ly(data = Data1,
+                x = ~ Date,
+                y = ~ Total.Confirmed, 
+                name = 'Active', 
+                fillcolor = active_color,
+                type = 'scatter',
+                mode = 'none', 
+                stackgroup = 'one') %>%
+  plotly::add_trace(y = ~ Total.Recovered,
+                    name = "Recovered",
+                    fillcolor = recovered_color) %>%
+  plotly::add_trace(y = ~ Total.Deceased,
+                    name = "Death",
+                    fillcolor = death_color) %>%
+  plotly::layout(title = "",
+                 yaxis = list(title = "Cumulative Number of Cases"),
+                 xaxis = list(title = "Date"),
+                 legend = list(x = 0.1, y = 0.9),
+                 hovermode = "compare")
+ggplotly(q) %>% config(displayModeBar = F) %>% layout(xaxis=list(fixedrange=TRUE)) %>% layout(yaxis=list(fixedrange=TRUE))
+  
+```
+
+
+### Recovery and Death Rates by State
+    
+```{r}
+df_summary <-df %>%
+  dplyr::mutate(recover_rate = Recovered / Confirmed,
+                death_rate = Deaths / Confirmed)  
+df_summary %>%
+  DT::datatable(
+            options = list(pageLength = nrow(df_summary), dom = 'tip')) %>%
+  DT::formatPercentage("recover_rate", 2) %>%
+  DT::formatPercentage("death_rate", 2)  
+```
+
+
+TodayCase
+=======================================================================
+
+
+Row
+-----------------------------------------------------------------------
+
+### TodayCase (`r  max(Trend_Data$lastupdatedtime)`)
+
+```{r}
+articles <- Trend_Data[1,4]
+valueBox(articles, icon = "fa-pencil")
+```
+
+### TodayDeaths(`r  max(Trend_Data$lastupdatedtime)`)
+
+```{r}
+comments <- Trend_Data[1,5]
+valueBox(comments, icon = "fa-comments")
+```
+
+### TodayRecovered(`r  max(Trend_Data$lastupdatedtime)`)
+
+```{r}
+spam <-Trend_Data[1,6]
+valueBox(spam, 
+         icon = "fa-trash",
+         color = ifelse(spam > 10, "warning", "primary"))
+```
+
+
+
+Row
+-----------------------------------------------------------------------
+
+### TodayStateWiseCase(`r  max(Trend_Today_PD$lastupdatedtime)`)
+
+```{r}
+df=Trend_Today_PD
+confirmed_color <- "purple"
+active_color <- "#1f77b4"
+recovered_color <- "forestgreen"
+death_color <- "red"
+p=plotly::plot_ly(df ,
+                  x =df$state , 
+                  y = df$deltaconfirmed, 
+                  # text =  ~ confirmed, 
+                  # textposition = 'auto',
+                  type = "bar", 
+                  name = "todayComfrm",
+                  marker = list(color = active_color)) %>%
+  plotly::add_trace(y = df$deltarecovered, 
+                    # text =  ~ death, 
+                    # textposition = 'auto',
+                    name = "todayrecover",
+                    marker = list(color = recovered_color)) %>%
+  plotly::add_trace(y = df$deltadeaths, 
+                    # text =  ~ death, 
+                    # textposition = 'auto',
+                    name = "todayDeaths",
+                    marker = list(color = death_color)) %>%
+  plotly::layout(barmode = 'stack',
+                 yaxis = list(title = "Total Cases (log scaled)",
+                              type = "log"),
+                 xaxis = list(title = "",categoryorder = "array",
+                              categoryarray=df$state),
+                 
+                 hovermode = "compare",
+                 margin =  list(
+                   # l = 60,
+                   # r = 40,
+                   b = 60,
+                   t = 40,
+                   pad = 2
+                 ))
+ggplotly(p) %>% config(displayModeBar = F) %>% layout(xaxis=list(fixedrange=TRUE)) %>% layout(yaxis=list(fixedrange=TRUE)) 
+  
+```
+
+
+
+Tested
+=======================================================================
+
+### STATEWISETESTED ##(`r  max(Trend_Data$lastupdatedtime)`)
+    
+```{r}
+cols <- viridis(3)
+cols <- substr(cols, 0, 7)
+hc <- highchart() %>%
+hc_xAxis(categories = KIT_Data1$states_tested_data.state) %>%
+hc_add_series(name = "TotalTested", data = KIT_Data1$states_tested_data.totaltested) %>%
+hc_add_series(name = "TotalPositive", data =KIT_Data1$states_tested_data.positive) %>%
+hc_colors(cols)
+p <- hc %>%
+hc_chart(type = "column",options3d = list(enabled = TRUE, beta = 15))
+p
+ 
+```
+
+
+Data
+=======================================================================
+
+Row 
+-----------------------------------------------------------------------
+
+
+
+
+
+
+
+About Me
+=======================================================================
+
+**About Me**
+Name-Rakesh Kumar(genisights private limited)
+Email-Rakesh.Kumar@aaumanalytics.com
+Data Patient Level : Raw Data Partition 1 (Till Apr 19) National Level :Time series, State-wise stats and Test counts State Level : has district-wise info State Level : has district-wise info V2 (minor difference in structure) State Level : Daily changes
+
+How this works This repo is merely a bridge to the main source of Data (Google Sheets) Volunteers collect data from trusted sources and update the sheet This repo periodically fetches relevant data from the Sheet and create/update static json/csv. We use Github Actions to fetch the data periodically and auto-commit. 
